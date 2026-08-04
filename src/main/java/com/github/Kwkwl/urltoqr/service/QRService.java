@@ -1,7 +1,6 @@
 package com.github.Kwkwl.urltoqr.service;
 
 import com.github.Kwkwl.urltoqr.dto.QRCodeRequest;
-import com.github.Kwkwl.urltoqr.dto.QRCodeResponse;
 import com.github.Kwkwl.urltoqr.entity.QRCode;
 import com.github.Kwkwl.urltoqr.repository.QRRepository;
 import com.google.zxing.BarcodeFormat;
@@ -10,14 +9,21 @@ import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import lombok.NoArgsConstructor;
+import org.apache.commons.validator.routines.UrlValidator;
+import org.apache.tomcat.util.http.InvalidParameterException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Optional;
 
 @Service
 @NoArgsConstructor
@@ -32,9 +38,33 @@ public class QRService {
     @Autowired
     private QRRepository qrRepository;
 
-    public byte[] createQR(QRCodeRequest request) throws WriterException, IOException {
+    public byte[] createQR(QRCodeRequest request) throws InvalidParameterException, IOException, NoSuchAlgorithmException, WriterException {
         String url = request.getUrl();
-        Path imagePath = Paths.get(uploadPath);
+
+        boolean isValidUrl = validateUrl(url);
+
+        if(!isValidUrl) {
+            throw new InvalidParameterException("유효하지 않은 URL 입니다.");
+        }
+
+        Optional<QRCode> optionalQRCode = qrRepository.findByUrl(url);
+
+        if(optionalQRCode.isPresent()) {
+            String existingImagePath = optionalQRCode.get().getImagePath();
+            return Files.readAllBytes(Path.of(existingImagePath));
+        }
+
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        byte[] hash = md.digest(url.getBytes(StandardCharsets.UTF_8));
+
+        StringBuilder stringBuilder = new StringBuilder();
+
+        for(byte b : hash) {
+            stringBuilder.append(String.format("%02x", b));
+        }
+
+        String imageName = stringBuilder.toString().substring(0, 10) + ".png";
+        Path imagePath = Paths.get(uploadPath, imageName);
 
         QRCodeWriter qrCodeWriter = new QRCodeWriter();
         BitMatrix bitMatrix = qrCodeWriter.encode(url, BarcodeFormat.QR_CODE, WIDTH, HEIGHT);
@@ -43,6 +73,11 @@ public class QRService {
         qrRepository.save(new QRCode(url, imagePath.toString()));
 
         return Files.readAllBytes(imagePath);
+    }
+
+    public boolean validateUrl(String url) {
+        UrlValidator urlValidator = new UrlValidator();
+        return urlValidator.isValid(url);
     }
 }
 
