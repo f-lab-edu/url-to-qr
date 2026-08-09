@@ -8,11 +8,6 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @AllArgsConstructor
 public class QRCodeResponse {
-
+    public String imageName;
     public byte[] image;
-    public String exceptionMsg;
-
-    public QRCodeResponse(byte[] image) {
-        this.image = image;
-    }
 }

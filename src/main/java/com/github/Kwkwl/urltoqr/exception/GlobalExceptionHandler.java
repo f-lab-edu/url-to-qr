@@ -13,48 +13,42 @@ import java.security.NoSuchAlgorithmException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<String> handleIllegalArgumentException(
-            IllegalArgumentException e) {
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(e.getMessage());
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(
+            IllegalArgumentException exception
+    ) {
+        return ResponseEntity.badRequest()
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .body(new ErrorResponse(
+                        "INVALID_URL",
+                        "올바른 URL을 입력해 주세요."
+                ));
     }
 
-    @ExceptionHandler(InvalidParameterException.class)
-    public ResponseEntity<String> handleInvalidParameterException(
-            InvalidParameterException e) {
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(e.getMessage());
+    @ExceptionHandler(QRGenerationException.class)
+    public ResponseEntity<ErrorResponse> handleQrGeneration(
+            QRGenerationException exception
+    ) {
+        return ResponseEntity.internalServerError()
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .body(new ErrorResponse(
+                        "QR_GENERATION_FAILED",
+                        "QR 코드 생성 중 오류가 발생했습니다."
+                ));
     }
 
-    @ExceptionHandler(IOException.class)
-    public ResponseEntity<String> handleIOException (
-            IOException e) {
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleUnexpectedException(
+            Exception exception
+    ) {
+        // log.error("예상하지 못한 오류", exception);
 
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("이미지 저장에 실패했습니다.");
-    }
-
-    @ExceptionHandler(NoSuchAlgorithmException.class)
-    public ResponseEntity<String> handleNoSuchAlgorithmException (
-            NoSuchAlgorithmException e) {
-
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("SHA-256 알고리즘을 사용할 수 없습니다.");
-    }
-
-    @ExceptionHandler(WriterException.class)
-    public ResponseEntity<String> handleWriterException (
-            WriterException e) {
-
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("QR 코드 생성에 실패했습니다.");
+        return ResponseEntity.internalServerError()
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .body(new ErrorResponse(
+                        "INTERNAL_SERVER_ERROR",
+                        "서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+                ));
     }
 }

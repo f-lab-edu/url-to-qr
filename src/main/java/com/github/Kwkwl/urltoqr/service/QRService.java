@@ -1,6 +1,7 @@
 package com.github.Kwkwl.urltoqr.service;
 
 import com.github.Kwkwl.urltoqr.dto.QRCodeRequest;
+import com.github.Kwkwl.urltoqr.dto.QRCodeResponse;
 import com.github.Kwkwl.urltoqr.entity.QRCode;
 import com.github.Kwkwl.urltoqr.repository.QRRepository;
 import com.google.zxing.BarcodeFormat;
@@ -38,7 +39,7 @@ public class QRService {
     @Autowired
     private QRRepository qrRepository;
 
-    public byte[] createQR(QRCodeRequest request) throws InvalidParameterException, IOException, NoSuchAlgorithmException, WriterException {
+    public QRCodeResponse createQR(QRCodeRequest request) throws InvalidParameterException, IOException, NoSuchAlgorithmException, WriterException {
         String url = request.getUrl();
 
         boolean isValidUrl = validateUrl(url);
@@ -50,8 +51,11 @@ public class QRService {
         Optional<QRCode> optionalQRCode = qrRepository.findByUrl(url);
 
         if(optionalQRCode.isPresent()) {
-            String existingImagePath = optionalQRCode.get().getImagePath();
-            return Files.readAllBytes(Path.of(existingImagePath));
+            QRCode qrCode = optionalQRCode.get();
+            String existingImagePath = qrCode.getImagePath();
+            byte[] image = Files.readAllBytes(Path.of(existingImagePath));
+
+            return new QRCodeResponse(qrCode.getImageName(), image);
         }
 
         MessageDigest md = MessageDigest.getInstance("SHA-256");
@@ -70,9 +74,9 @@ public class QRService {
         BitMatrix bitMatrix = qrCodeWriter.encode(url, BarcodeFormat.QR_CODE, WIDTH, HEIGHT);
         MatrixToImageWriter.writeToPath(bitMatrix, format, imagePath);
 
-        qrRepository.save(new QRCode(url, imagePath.toString()));
+        qrRepository.save(new QRCode(url, imageName, imagePath.toString()));
 
-        return Files.readAllBytes(imagePath);
+        return new QRCodeResponse(imageName, Files.readAllBytes(imagePath));
     }
 
     public boolean validateUrl(String url) {

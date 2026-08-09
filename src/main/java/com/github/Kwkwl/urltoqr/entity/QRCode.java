@@ -5,7 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "")
+@Table(name = "qrcode")
 @Getter
 @NoArgsConstructor
 public class QRCode {
@@ -13,14 +13,18 @@ public class QRCode {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 2048)
     private String url;
+
+    @Column(nullable = false, length = 2048)
+    private String imageName;
 
     @Column(nullable = false)
     private String imagePath;
 
-    public QRCode(String url, String imagePath) {
+    public QRCode(String url, String imageName, String imagePath) {
         this.url = url;
+        this.imageName = imageName;
         this.imagePath = imagePath;
     }
 
