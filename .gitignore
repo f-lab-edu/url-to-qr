@@ -34,4 +34,4 @@ build/
 
 .m2-test/
 outputtest.png
-src/test/java/com/github/Kwkwl/urltoqr/service/
+src/test/
