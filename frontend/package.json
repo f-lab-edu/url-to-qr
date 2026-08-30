@@ -1,7 +1,10 @@
 {
   "scripts": {
+    "runtime:config": "node scripts/generate-runtime-config.cjs",
+    "predev": "npm run runtime:config",
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
+    "prepreview": "npm run runtime:config -- --output dist/runtime-config.js",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {

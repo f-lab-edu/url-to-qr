@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ArrowDownToLine, ArrowUpRight, Link2, QrCode, X } from "lucide-react";
 
-const QR_API_BASE_URL =
-  import.meta.env.VITE_QR_API_BASE_URL || "http://localhost:8080";
+const QR_API_BASE_URL = (
+  window.__RUNTIME_CONFIG__?.VITE_QR_API_BASE_URL ||
+  import.meta.env.VITE_QR_API_BASE_URL ||
+  "http://localhost:8080"
+).replace(/\/$/, "");
 const QR_API_URL = `${QR_API_BASE_URL}/create-qr`;
 
 function normalizeUrl(value) {
