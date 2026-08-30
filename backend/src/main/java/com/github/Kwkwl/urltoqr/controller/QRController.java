@@ -17,10 +17,6 @@ import java.security.NoSuchAlgorithmException;
 
 @RestController
 @RequestMapping("/create-qr")
-@CrossOrigin(
-        origins = "${app.cors.allowed-origin}",
-        exposedHeaders = HttpHeaders.CONTENT_DISPOSITION
-)
 public class QRController {
 
     @Autowired
