@@ -1,0 +1,109 @@
+services:
+  url-to-qr-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+   
+    environment:
+      VITE_QR_API_BASE_URL: ${VITE_QR_API_BASE_URL}
+    
+    volumes:
+      - ./frontend/runtime-config.template.js:/opt/runtime-config.template.js:ro
+      - ./frontend/docker-entrypoint.sh:/docker-entrypoint-custom.sh:ro
+    
+    entrypoint: ["/bin/sh", "/docker-entrypoint-custom.sh"]
+
+    ports:
+      - "5124:8080"
+
+    networks:
+      - app-network
+
+    depends_on:
+      - url-to-qr-backend
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/ || exit 1"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+      start_period: 2s
+
+    restart: unless-stopped
+
+
+  url-to-qr-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+    env_file:
+      - .env
+
+    expose:
+      - "8080"
+    
+    volumes:
+      - qr-images:/app/output
+
+    networks:
+      - app-network
+      - db-network
+   
+    security_opt:
+      - no-new-privileges:true
+
+    cap_drop:
+      - ALL
+
+    depends_on:
+      url-to-qr-db:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/actuator/health/app || exit 1"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+      start_period: 10s
+
+    restart: unless-stopped
+
+
+  url-to-qr-db:
+    image: mysql:8.4
+
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+
+    networks:
+      - db-network
+
+    volumes:
+      - db-data:/var/lib/mysql
+
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+      start_period: 5s
+
+    restart: unless-stopped
+
+
+networks:
+  app-network:
+    driver: bridge
+
+  db-network:
+    driver: bridge
+    internal: true    
+
+
+volumes:
+  db-data:
+  qr-images:
