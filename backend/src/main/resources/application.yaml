@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: url-to-qr
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+server:
+   port: ${SERVER_PORT}
+
+management:
+  endpoints:
+    access:
+      default: none
+
+    jmx:
+      exposure:
+        exclude: "*"
+
+    web:
+      exposure:
+        include: health
+
+  endpoint:
+    health:
+      access: read-only
+      show-details: never
+      show-components: never
+
+      group:
+        app:
+          include: ping
+
+        dependencies:
+          include: db
+
+qr:
+  uploadPath: ${QR_UPLOAD_PATH}
