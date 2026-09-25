@@ -1,0 +1,19 @@
+{
+  "scripts": {
+    "runtime:config": "node scripts/generate-runtime-config.cjs",
+    "predev": "npm run runtime:config",
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "prepreview": "npm run runtime:config -- --output dist/runtime-config.js",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "lucide-react": "1.44.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "4.3.4",
+    "vite": "6.4.3"
+  }
+}
