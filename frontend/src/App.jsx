@@ -5,8 +5,10 @@ const QR_API_BASE_URL = (
   window.__RUNTIME_CONFIG__?.VITE_QR_API_BASE_URL ||
   import.meta.env.VITE_QR_API_BASE_URL ||
   "http://localhost:8080"
-).replace(/\/$/, "");
-const QR_API_URL = `${QR_API_BASE_URL}/create-qr`;
+).replace(/\/+$/, "");
+const QR_API_URL = QR_API_BASE_URL.endsWith("/api")
+  ? `${QR_API_BASE_URL}/qr-codes`
+  : `${QR_API_BASE_URL}/api/qr-codes`;
 
 function normalizeUrl(value) {
   const trimmed = value.trim();
@@ -20,8 +22,8 @@ function normalizeUrl(value) {
 function isValidUrl(value) {
   if (!value) return false;
   try {
-    new URL(value);
-    return true;
+    const parsedUrl = new URL(value);
+    return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
   } catch {
     return false;
   }
