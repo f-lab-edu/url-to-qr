@@ -40,11 +40,14 @@ services:
     env_file:
       - .env
 
+    environment:
+      QR_UPLOAD_PATH: /app/output
+
     expose:
       - "8080"
-    
+
     volumes:
-      - qr-images:/app/output
+      - ${QR_OUTPUT_HOST_PATH:-./output}:/app/output
 
     networks:
       - app-network
@@ -106,4 +109,4 @@ networks:
 
 volumes:
   db-data:
-  qr-images:
+
