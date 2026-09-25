@@ -41,4 +41,4 @@ management:
           include: db
 
 qr:
-  uploadPath: ${QR_UPLOAD_PATH}
+  upload-path: ${QR_UPLOAD_PATH:/app/output}

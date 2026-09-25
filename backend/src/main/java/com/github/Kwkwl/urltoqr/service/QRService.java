@@ -11,7 +11,6 @@ import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import lombok.NoArgsConstructor;
 import org.apache.commons.validator.routines.UrlValidator;
-import org.apache.tomcat.util.http.InvalidParameterException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -28,9 +27,9 @@ import java.util.Optional;
 @Service
 @NoArgsConstructor
 public class QRService {
-    private int WIDTH = 512;
-    private int HEIGHT = 512;
-    private String format = "PNG";
+    private static int WIDTH = 512;
+    private static int HEIGHT = 512;
+    private static String FORMAT = "PNG";
 
     @Value("${qr.uploadPath}")
     String uploadPath;
@@ -38,13 +37,13 @@ public class QRService {
     @Autowired
     private QRRepository qrRepository;
 
-    public QRCodeResponse createQR(QRCodeRequest request) throws InvalidParameterException, IOException, NoSuchAlgorithmException, WriterException {
+    public QRCodeResponse createQR(QRCodeRequest request) throws IllegalArgumentException, IOException, NoSuchAlgorithmException, WriterException {
         String url = request.getUrl();
 
         boolean isValidUrl = validateUrl(url);
 
         if(!isValidUrl) {
-            throw new InvalidParameterException("유효하지 않은 URL 입니다.");
+            throw new IllegalArgumentException("유효하지 않은 URL 입니다.");
         }
 
         Optional<QRCode> optionalQRCode = qrRepository.findByUrl(url);
@@ -71,7 +70,7 @@ public class QRService {
 
         QRCodeWriter qrCodeWriter = new QRCodeWriter();
         BitMatrix bitMatrix = qrCodeWriter.encode(url, BarcodeFormat.QR_CODE, WIDTH, HEIGHT);
-        MatrixToImageWriter.writeToPath(bitMatrix, format, imagePath);
+        MatrixToImageWriter.writeToPath(bitMatrix, FORMAT, imagePath);
 
         qrRepository.save(new QRCode(url, imageName, imagePath.toString()));
 
@@ -79,7 +78,11 @@ public class QRService {
     }
 
     public boolean validateUrl(String url) {
-        UrlValidator urlValidator = new UrlValidator();
+        if (url == null || url.isBlank()) {
+            return false;
+        }
+
+        UrlValidator urlValidator = new UrlValidator(new String[]{"http", "https"});
         return urlValidator.isValid(url);
     }
 }

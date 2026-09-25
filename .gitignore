@@ -33,5 +33,3 @@ build/
 .vscode/
 
 .m2-test/
-outputtest.png
-src/test/
