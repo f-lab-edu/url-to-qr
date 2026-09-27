@@ -1,11 +1,19 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownToLine, ArrowUpRight, Link2, QrCode, X } from "lucide-react";
 
-const QR_API_BASE_URL = (
+function removeTrailingSlashes(value) {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === "/") {
+    end -= 1;
+  }
+  return value.slice(0, end);
+}
+
+const QR_API_BASE_URL = removeTrailingSlashes(
   window.__RUNTIME_CONFIG__?.VITE_QR_API_BASE_URL ||
-  import.meta.env.VITE_QR_API_BASE_URL ||
-  "http://localhost:8080"
-).replace(/\/+$/, "");
+    import.meta.env.VITE_QR_API_BASE_URL ||
+    "http://localhost:8080",
+);
 const QR_API_URL = QR_API_BASE_URL.endsWith("/api")
   ? `${QR_API_BASE_URL}/qr-codes`
   : `${QR_API_BASE_URL}/api/qr-codes`;
@@ -57,12 +65,25 @@ async function getServerErrorMessage(response) {
   }
 }
 
+function getQrStatus(isGenerating, qrImageUrl) {
+  if (isGenerating) return "MAKING";
+  if (qrImageUrl) return "READY";
+  return "WAITING";
+}
+
+function getEmptyStateMessage(isGenerating, requestError) {
+  if (isGenerating) return "QR 코드를 만들고 있어요";
+  if (requestError) return "서버 연결을 확인해 주세요";
+  return "왼쪽에 주소를 입력해 주세요";
+}
+
 function App() {
   const [url, setUrl] = useState("");
   const [qrImageUrl, setQrImageUrl] = useState("");
   const [qrFileName, setQrFileName] = useState("qr-code.png");
   const [requestError, setRequestError] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const activeRequestRef = useRef(null);
 
   const normalizedUrl = useMemo(() => normalizeUrl(url), [url]);
   const hasInput = Boolean(url.trim());
@@ -79,20 +100,33 @@ function App() {
     [qrImageUrl],
   );
 
-  function handleUrlChange(event) {
-    setUrl(event.target.value);
+  useEffect(
+    () => () => {
+      activeRequestRef.current?.abort();
+      activeRequestRef.current = null;
+    },
+    [],
+  );
+
+  function updateUrl(value) {
+    activeRequestRef.current?.abort();
+    activeRequestRef.current = null;
+    setIsGenerating(false);
+    setUrl(value);
     setRequestError("");
-    setQrImageUrl((previousUrl) => {
-      if (previousUrl) URL.revokeObjectURL(previousUrl);
-      return "";
-    });
+    setQrImageUrl("");
     setQrFileName("qr-code.png");
   }
 
   async function handleGenerate(event) {
     event.preventDefault();
     const requestUrl = normalizeUrl(url);
-    if (!isValidUrl(requestUrl) || isGenerating) return;
+    if (!isValidUrl(requestUrl) || activeRequestRef.current) return;
+
+    const controller = new AbortController();
+    activeRequestRef.current = controller;
+    const isCurrentRequest = () =>
+      activeRequestRef.current === controller && !controller.signal.aborted;
 
     setUrl(requestUrl);
     setIsGenerating(true);
@@ -103,25 +137,25 @@ function App() {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=UTF-8" },
         body: requestUrl,
+        signal: controller.signal,
       });
 
       if (!response.ok) {
         throw new Error(await getServerErrorMessage(response));
       }
 
-      setQrFileName(
-        getDownloadFileName(response.headers.get("Content-Disposition")),
+      const blob = await response.blob();
+      // Cancellation can race with completion; only the active request may commit.
+      if (!isCurrentRequest()) return;
+      const fileName = getDownloadFileName(
+        response.headers.get("Content-Disposition"),
       );
-      const objectUrl = URL.createObjectURL(await response.blob());
-      setQrImageUrl((previousUrl) => {
-        if (previousUrl) URL.revokeObjectURL(previousUrl);
-        return objectUrl;
-      });
+      const objectUrl = URL.createObjectURL(blob);
+      setQrFileName(fileName);
+      setQrImageUrl(objectUrl);
     } catch (error) {
-      setQrImageUrl((previousUrl) => {
-        if (previousUrl) URL.revokeObjectURL(previousUrl);
-        return "";
-      });
+      if (!isCurrentRequest()) return;
+      setQrImageUrl("");
       setQrFileName("qr-code.png");
       setRequestError(
         error instanceof TypeError
@@ -129,7 +163,10 @@ function App() {
           : error.message || "QR 코드 생성 중 오류가 발생했습니다.",
       );
     } finally {
-      setIsGenerating(false);
+      if (isCurrentRequest()) {
+        activeRequestRef.current = null;
+        setIsGenerating(false);
+      }
     }
   }
 
@@ -147,7 +184,7 @@ function App() {
         <a className="wordmark" href="#top" aria-label="큐알리 홈">
           <span className="brand-dot">
             <QrCode size={18} />
-          </span>
+          </span>{" "}
           URL2QR
         </a>
         <span className="nav-note">Simple QR maker</span>
@@ -175,7 +212,7 @@ function App() {
                 placeholder="example.com"
                 autoComplete="url"
                 spellCheck="false"
-                onChange={handleUrlChange}
+                onChange={(event) => updateUrl(event.target.value)}
                 onBlur={() => {
                   if (hasValidUrl) setUrl(normalizedUrl);
                 }}
@@ -185,7 +222,7 @@ function App() {
                   type="button"
                   className="clear-button"
                   aria-label="입력 지우기"
-                  onClick={() => setUrl("")}
+                  onClick={() => updateUrl("")}
                 >
                   <X size={17} />
                 </button>
@@ -213,7 +250,7 @@ function App() {
           <div className="card-topline">
             <span>YOUR QR</span>
             <span className={`status${qrImageUrl ? " ready" : ""}`}>
-              <i /> {isGenerating ? "MAKING" : qrImageUrl ? "READY" : "WAITING"}
+              <i /> {getQrStatus(isGenerating, qrImageUrl)}
             </span>
           </div>
           <div className="qr-stage">
@@ -226,13 +263,7 @@ function App() {
             ) : (
               <div className="empty-state">
                 <QrCode size={72} strokeWidth={1.25} aria-hidden="true" />
-                <span>
-                  {isGenerating
-                    ? "QR 코드를 만들고 있어요"
-                    : requestError
-                      ? "서버 연결을 확인해 주세요"
-                      : "왼쪽에 주소를 입력해 주세요"}
-                </span>
+                <span>{getEmptyStateMessage(isGenerating, requestError)}</span>
               </div>
             )}
           </div>

@@ -7,34 +7,50 @@ const envPath = path.join(projectRoot, ".env");
 function readEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return {};
 
-  return fs.readFileSync(filePath, "utf8").split(/\r?\n/).reduce((env, line) => {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) return env;
+  return fs
+    .readFileSync(filePath, "utf8")
+    .split(/\r?\n/)
+    .reduce((env, line) => {
+      let trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) return env;
 
-    const match = trimmed.match(/^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
-    if (!match) return env;
+      if (trimmed.startsWith("export ")) {
+        trimmed = trimmed.slice("export ".length).trimStart();
+      }
 
-    let value = match[2].trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    } else {
-      value = value.replace(/\s+#.*$/, "").trim();
-    }
+      const equalsIndex = trimmed.indexOf("=");
+      if (equalsIndex < 0) return env;
 
-    env[match[1]] = value;
-    return env;
-  }, {});
+      const key = trimmed.slice(0, equalsIndex).trim();
+      if (!/^[A-Za-z_]\w*$/.test(key)) return env;
+
+      let value = trimmed.slice(equalsIndex + 1).trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      } else {
+        for (let i = 1; i < value.length; i += 1) {
+          if (value[i] === "#" && /\s/.test(value[i - 1])) {
+            value = value.slice(0, i).trim();
+            break;
+          }
+        }
+      }
+
+      env[key] = value;
+      return env;
+    }, {});
 }
 
 const fileEnv = readEnvFile(envPath);
 
 const outputFlagIndex = process.argv.indexOf("--output");
-const outputPath = outputFlagIndex >= 0
-  ? process.argv[outputFlagIndex + 1]
-  : "public/runtime-config.js";
+const outputPath =
+  outputFlagIndex >= 0
+    ? process.argv[outputFlagIndex + 1]
+    : "public/runtime-config.js";
 
 if (!outputPath) {
   throw new Error("--output 다음에 출력 경로를 지정해야 합니다.");
@@ -56,4 +72,6 @@ fs.writeFileSync(
 );
 
 console.log(`Runtime config written to ${absoluteOutputPath}`);
-console.log(fs.existsSync(envPath) ? `Loaded ${envPath}` : `No .env found at ${envPath}`);
+console.log(
+  fs.existsSync(envPath) ? `Loaded ${envPath}` : `No .env found at ${envPath}`,
+);
