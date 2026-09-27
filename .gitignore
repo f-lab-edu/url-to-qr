@@ -1,0 +1,7 @@
+.agents
+.codex
+build/
+dist/
+node_modules/
+*.log
+.vscode/
