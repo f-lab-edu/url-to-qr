@@ -1,158 +1,102 @@
-# URL to QR Backend
+# QR Generator Frontend
 
-URL을 QR 코드 이미지로 변환하고 생성 이력을 MySQL에 저장하는 Spring Boot 애플리케이션입니다.
-
-## 프로젝트 위치
-
-백엔드 애플리케이션은 저장소의 `backend` 디렉터리에 있습니다. 
+URL을 입력해 QR 코드를 생성하고 PNG 파일로 내려받는 React/Vite 프런트엔드입니다.
 
 ## 요구 사항
 
-- JDK 17 이상
-- MySQL 8.x
-- QR 이미지 저장 디렉터리
+- Node.js 및 npm
+- 실행 중인 `url-to-qr` 백엔드
 
-## 데이터베이스 준비
+## 프로젝트 위치
 
-애플리케이션 실행 전에 MySQL이 실행 중이어야 합니다. 
-MySQL에 관리자 계정으로 접속한 뒤 데이터베이스와 애플리케이션 사용자를 생성합니다.
-
-```sql
-CREATE DATABASE url2qr
-    CHARACTER SET utf8mb4
-    COLLATE utf8mb4_unicode_ci;
-	
-CREATE USER 'qruser'@'%'
-    IDENTIFIED BY 'change-me';
-
-GRANT ALL PRIVILEGES ON url2qr.*
-    TO 'qruser'@'%';
-
-FLUSH PRIVILEGES;
-```
-
-JPA의 `spring.jpa.hibernate.ddl-auto=update` 설정에 따라 테이블은 애플리케이션 시작 시 자동으로 생성 또는 갱신됩니다. 
-데이터베이스와 접속 사용자는 미리 준비해야 합니다.
+프런트엔드 애플리케이션은 저장소의 `frontend` 디렉터리에 있습니다.
 
 ## 환경변수
 
-1. `SERVER_PORT` = HTTP 서버 포트
-2. `DB_URL` = MySQL JDBC URL 
-3. `DB_USERNAME` = MySQL 사용자 
-4. `DB_PASSWORD` = MySQL 비밀번호
-5. `QR_UPLOAD_PATH` = QR 이미지 저장 디렉터리 
+`frontend/.env` 파일을 생성합니다.
 
-Spring Boot는 `.env` 파일을 자동으로 읽지 않습니다. 
-직접 실행할 때는 셸 환경변수로 설정하고, Docker Compose에서는 `env_file`로 컨테이너에 전달합니다.
-`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`는 위에서 생성한 데이터베이스 및 사용자 정보와 일치해야 합니다.
-
-### Windows PowerShell
-
-```powershell
-cd backend
-
-$env:SERVER_PORT = "8080"
-$env:DB_URL = "jdbc:mysql://localhost:3306/url2qr"
-$env:DB_USERNAME = "qruser"
-$env:DB_PASSWORD = "change-me"
-$env:QR_UPLOAD_PATH = "./output"
-
-New-Item -ItemType Directory -Force ./output
+```dotenv
+VITE_QR_API_BASE_URL=http://localhost:8080
 ```
 
-### Linux/macOS
+Nginx가 `/api` 요청을 백엔드로 프록시하는 배포 환경에서는 다음 값을 사용합니다.
+
+```dotenv
+VITE_QR_API_BASE_URL=/api
+```
+
+API 주소 적용 우선순위는 다음과 같습니다.
+
+1. 실행 프로세스의 `VITE_QR_API_BASE_URL`
+2. `frontend/.env`의 `VITE_QR_API_BASE_URL`
+3. 기본값 `http://localhost:8080`
+
+서버 시작 전에 `scripts/generate-runtime-config.cjs`가 값을 읽어 `runtime-config.js`를 생성하므로 빌드 이후에도 API 주소를 변경할 수 있습니다.
+
+## 개발 서버 실행
 
 ```bash
-cd backend
-
-export SERVER_PORT=8080
-export DB_URL=jdbc:mysql://localhost:3306/url2qr
-export DB_USERNAME=qruser
-export DB_PASSWORD=change-me
-export QR_UPLOAD_PATH=./output
-
-mkdir -p "$QR_UPLOAD_PATH"
+cd frontend
+npm ci
+npm run dev
 ```
 
-환경변수는 현재 터미널 프로세스에 설정됩니다.
-값을 설정한 터미널에서 이어서 Spring Boot를 실행해야 하며, 새 터미널을 열면 다시 설정해야 합니다.
+기본 접속 주소는 `http://127.0.0.1:5173`입니다. `predev` 스크립트가 먼저 실행되어 `public/runtime-config.js`를 생성합니다.
 
-## 애플리케이션 실행
+> 백엔드에는 현재 CORS 허용 설정이 없습니다. 프런트와 백엔드를 서로 다른 origin으로 실행하면 브라우저 요청이 차단될 수 있으므로, 통합 환경에서는 Nginx 같은 동일 origin 프록시가 `/api`를 백엔드로 전달하도록 구성하는 방식을 권장합니다.
 
-Windows:
-
-```powershell
-./mvnw.cmd spring-boot:run
-```
-
-Linux/macOS:
+## 프로덕션 빌드
 
 ```bash
-chmod +x mvnw
-./mvnw spring-boot:run
+cd frontend
+npm ci
+npm run build
 ```
 
-환경변수 예시 기준 접속 주소는 `http://localhost:8080`입니다.
+빌드 결과는 `frontend/dist/`에 생성됩니다.
 
-## 실행 JAR 빌드
-
-Windows:
-
-```powershell
-cd backend
-./mvnw.cmd clean package -DskipTests
-```
-
-Linux/macOS:
+빌드 결과 미리보기:
 
 ```bash
-cd backend
-./mvnw clean package -DskipTests
+npm run preview
 ```
 
-실행 가능한 JAR은 다음 위치에 생성됩니다.
+`prepreview` 스크립트가 현재 환경변수 또는 `.env`를 읽어 `dist/runtime-config.js`를 다시 생성합니다.
+
+## 정적 웹서버 및 Docker 배포
+
+Nginx 등으로 `dist`를 직접 서빙할 때는 웹서버 시작 전에 런타임 설정을 생성합니다.
+
+```bash
+cd frontend
+npm run runtime:config -- --output dist/runtime-config.js
+```
+
+미리 빌드한 결과만 Docker/Nginx 서버에 배포할 때 필요한 프런트 파일은 다음과 같습니다.
 
 ```text
-backend/target/url-to-qr-0.0.1-SNAPSHOT.jar
+dist/
+runtime-config.template.js
+docker-entrypoint.sh
 ```
 
-실행:
+`docker-entrypoint.sh`는 컨테이너 시작 시 `runtime-config.template.js`에 `VITE_QR_API_BASE_URL`을 적용해 `/usr/share/nginx/html/runtime-config.js`를 생성합니다.
 
-```bash
-java -jar target/url-to-qr-0.0.1-SNAPSHOT.jar
-```
+## 주요 명령어
 
-JAR 실행 시에도 필수 환경변수가 설정되어 있어야 합니다.
+1. `npm run dev` = 개발 서버 실행
+2. `npm run build` = 프로덕션 정적 파일 빌드
+3. `npm run preview` = 빌드 결과 미리보기
+4. `npm run runtime:config` = `public/runtime-config.js` 생성
+5. `npm run runtime:config -- --output dist/runtime-config.js` = 배포용 런타임 설정 생성
 
-## API
-
-### QR 코드 생성
+## API 요청
 
 ```http
-POST /create-qr
+POST {VITE_QR_API_BASE_URL}/create-qr
 Content-Type: text/plain
-Accept: image/png
 
 https://example.com
 ```
 
-```bash
-curl -X POST http://localhost:8080/create-qr \
-  -H "Content-Type: text/plain" \
-  -H "Accept: image/png" \
-  --data "https://example.com" \
-  --output qr-code.png
-```
-
-성공하면 `200 OK`, `image/png` 응답과 생성 파일명이 포함된 `Content-Disposition` 헤더를 반환합니다. 
-유효하지 않은 URL은 `400 Bad Request`와 `application/problem+json` 응답을 반환합니다.
-
-## 상태 확인
-
-```text
-GET /actuator/health/app
-GET /actuator/health/dependencies
-```
-
-- `app`: 애플리케이션 ping 상태
-- `dependencies`: 데이터베이스 연결 상태
+성공하면 PNG 이미지를 받아 화면에 표시하고 다운로드할 수 있습니다.
