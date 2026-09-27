@@ -5,3 +5,18 @@ dist/
 node_modules/
 *.log
 .vscode/
+
+# IntelliJ IDEA
+.idea/
+**/.idea/
+*.iws
+*.iml
+*.ipr
+
+# Maven
+target/
+**/target/
+.m2-test/
+
+# Help
+HELP.md
