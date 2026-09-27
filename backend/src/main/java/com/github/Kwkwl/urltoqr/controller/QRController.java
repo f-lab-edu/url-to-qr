@@ -25,10 +25,10 @@ public class QRController {
     private final QRService qrService;
 
     @PostMapping(consumes = MediaType.TEXT_PLAIN_VALUE, produces = MediaType.IMAGE_PNG_VALUE)
-    public ResponseEntity<?> createQR(@Valid @RequestBody String url)
+    public ResponseEntity<?> createQr(@Valid @RequestBody String url)
             throws IllegalArgumentException, IOException, NoSuchAlgorithmException, WriterException {
 
-        QRCodeResponse qrCodeResponse = qrService.createQR(new QRCodeRequest(url.trim()));
+        QRCodeResponse qrCodeResponse = qrService.createQr(new QRCodeRequest(url.trim()));
 
         return ResponseEntity.ok()
                 .contentType(MediaType.IMAGE_PNG)

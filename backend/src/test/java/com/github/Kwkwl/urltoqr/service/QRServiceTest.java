@@ -9,6 +9,7 @@ import com.google.zxing.MultiFormatReader;
 import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
 import com.google.zxing.common.HybridBinarizer;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -48,20 +49,21 @@ class QRServiceTest {
     }
 
     @Test
-    void createQR_createsDecodablePngAndReturnsFileName() throws Exception {
+    @DisplayName("URL을 복원할 수 있는 QR PNG를 저장하고 이미지와 파일명을 반환한다")
+    void createQrCreatesDecodablePngAndReturnsFileName() throws Exception {
         String url = "https://example.com/products?id=123";
         when(qrRepository.findByUrl(url)).thenReturn(Optional.empty());
         when(qrRepository.save(any(QRCode.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        QRCodeResponse response = qrService.createQR(new QRCodeRequest(url));
+        QRCodeResponse response = qrService.createQr(new QRCodeRequest(url));
 
         assertNotNull(response);
         assertNotNull(response.getImageName());
         assertTrue(response.getImageName().endsWith(".png"));
         assertNotNull(response.getImage());
         assertTrue(response.getImage().length > 0);
-        assertEquals(url, decodeQR(response.getImage()));
+        assertEquals(url, decodeQr(response.getImage()));
 
         ArgumentCaptor<QRCode> captor = ArgumentCaptor.forClass(QRCode.class);
         verify(qrRepository).save(captor.capture());
@@ -76,7 +78,8 @@ class QRServiceTest {
     }
 
     @Test
-    void createQR_returnsExistingImageAndFileNameWithoutCreatingAnotherOne() throws Exception {
+    @DisplayName("이미 등록된 URL이면 새로 생성하지 않고 기존 이미지와 파일명을 반환한다")
+    void createQrReturnsExistingImageAndFileNameWithoutCreatingAnotherOne() throws Exception {
         String url = "https://example.com/already-created";
         String existingImageName = "existing.png";
         byte[] existingImage = new byte[] {1, 2, 3, 4};
@@ -87,7 +90,7 @@ class QRServiceTest {
                 new QRCode(url, existingImageName, existingImagePath.toString())
         ));
 
-        QRCodeResponse response = qrService.createQR(new QRCodeRequest(url));
+        QRCodeResponse response = qrService.createQr(new QRCodeRequest(url));
 
         assertEquals(existingImageName, response.getImageName());
         assertArrayEquals(existingImage, response.getImage());
@@ -95,40 +98,45 @@ class QRServiceTest {
     }
 
     @Test
-    void createQR_rejectsNullUrl() {
+    @DisplayName("URL이 null이면 QR 생성을 거부하고 저장소를 호출하지 않는다")
+    void createQrRejectsNullUrl() {
         QRCodeRequest request = new QRCodeRequest(null);
 
-        assertThrows(IllegalArgumentException.class, () -> qrService.createQR(request));
+        assertThrows(IllegalArgumentException.class, () -> qrService.createQr(request));
         verifyNoInteractions(qrRepository);
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"", " ", "\t\n", "not-a-url", "example.com", "ftp://example.com/file", "file:///tmp/file"})
-    void createQR_rejectsInvalidUrl(String url) {
+    @DisplayName("유효하지 않은 URL이면 QR 생성을 거부하고 저장소를 호출하지 않는다")
+    void createQrRejectsInvalidUrl(String url) {
         QRCodeRequest request = new QRCodeRequest(url);
 
-        assertThrows(IllegalArgumentException.class, () -> qrService.createQR(request));
+        assertThrows(IllegalArgumentException.class, () -> qrService.createQr(request));
         verifyNoInteractions(qrRepository);
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"https://example.com/path", "http://example.com", "https://example.com/products?id=123#details"})
-    void validateUrl_acceptsHttpAndHttpsOnlyWhenWellFormed(String url) {
+    @DisplayName("올바른 형식의 HTTP 및 HTTPS URL을 유효하다고 판단한다")
+    void validateUrlAcceptsHttpAndHttpsOnlyWhenWellFormed(String url) {
         assertTrue(qrService.validateUrl(url));
     }
 
     @Test
-    void validateUrl_rejectsNullUrl() {
+    @DisplayName("null URL을 유효하지 않다고 판단한다")
+    void validateUrlRejectsNullUrl() {
         assertFalse(qrService.validateUrl(null));
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"", " ", "\t\n", "not-a-url", "example.com", "ftp://example.com/file", "file:///tmp/file"})
-    void validateUrl_rejectsBlankMalformedAndUnsupportedUrls(String url) {
+    @DisplayName("빈 값, 잘못된 형식, 지원하지 않는 프로토콜의 URL을 거부한다")
+    void validateUrlRejectsBlankMalformedAndUnsupportedUrls(String url) {
         assertFalse(qrService.validateUrl(url));
     }
 
-    private String decodeQR(byte[] imageBytes) throws Exception {
+    private String decodeQr(byte[] imageBytes) throws Exception {
         BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
         assertNotNull(image, "The generated result must be a PNG image.");
         assertEquals(512, image.getWidth());

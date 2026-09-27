@@ -37,7 +37,7 @@ public class QRService {
     @Autowired
     private QRRepository qrRepository;
 
-    public QRCodeResponse createQR(QRCodeRequest request) throws IllegalArgumentException, IOException, NoSuchAlgorithmException, WriterException {
+    public QRCodeResponse createQr(QRCodeRequest request) throws IllegalArgumentException, IOException, NoSuchAlgorithmException, WriterException {
         String url = request.getUrl();
 
         boolean isValidUrl = validateUrl(url);
