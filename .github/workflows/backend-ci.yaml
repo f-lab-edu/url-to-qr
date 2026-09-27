@@ -13,6 +13,10 @@ jobs:
   verify:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: ./backend
+        
     steps:
       - name: 소스 코드 체크아웃
         uses: actions/checkout@v6
