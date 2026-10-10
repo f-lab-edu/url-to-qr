@@ -12,6 +12,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Inspect OIDC claims
+        shell: bash
+        run: |
+          TOKEN_JSON=$(curl -fsS \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
+
+          TOKEN=$(echo "$TOKEN_JSON" | jq -r '.value')
+
+          PAYLOAD=$(echo "$TOKEN" | cut -d '.' -f 2)
+
+          echo "$PAYLOAD" | base64 -d 2>/dev/null | \
+            jq '{iss, aud, sub, repository, repository_id, repository_owner_id, ref}'
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c
         with:
@@ -20,5 +34,4 @@ jobs:
           role-session-name: github-oidc-test
 
       - name: Verify AWS identity
-        run: |
-          aws sts get-caller-identity
+        run: aws sts get-caller-identity
