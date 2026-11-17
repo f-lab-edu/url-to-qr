@@ -5,6 +5,11 @@ WORKDIR /app
 COPY .mvn/ .mvn/
 COPY mvnw pom.xml ./
 
+# Maven Wrapper가 ZIP 배포 파일을 사용할 수 있도록 unzip 설치
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends unzip \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN chmod +x mvnw
 RUN ./mvnw -B dependency:go-offline -DskipTests
 
